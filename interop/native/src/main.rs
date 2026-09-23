@@ -1,4 +1,4 @@
-//! write: creates native-raw.db and native-pass.db. read: opens web-raw.db and web-pass.db.
+//! write: creates native-raw.db and native-pass.db. read: opens the files the browser tests wrote.
 use rusqlite::Connection;
 
 const RAW: &str =
@@ -43,7 +43,12 @@ fn main() {
             }
         }
         "read" => {
-            for (name, key) in [("web-raw.db", RAW), ("web-pass.db", PASS)] {
+            for (name, key) in [
+                ("web-raw.db", RAW),
+                ("web-pass.db", PASS),
+                ("rusqlite-raw.db", RAW),
+                ("rusqlite-pass.db", PASS),
+            ] {
                 let db = open(&format!("{dir}/{name}"), key);
                 let v: String = db.query_row("SELECT v FROM t", [], |r| r.get(0)).unwrap();
                 assert_eq!(v, "written in the browser");
