@@ -13,3 +13,6 @@ wasm-bindgen = "0.2"
 sqlcipher-wasm-src = { path = "../.." }
 js-sys = "0.3"
 wasm-bindgen-test = "0.3"
+
+# Standalone, so the root crate never adopts it as a member.
+[workspace]

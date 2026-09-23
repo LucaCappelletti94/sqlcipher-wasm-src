@@ -7,3 +7,6 @@ description = "Writes and reads SQLCipher files with rusqlite's bundled SQLCiphe
 
 [dependencies]
 rusqlite = { version = "0.40", features = ["bundled-sqlcipher"] }
+
+# Standalone, so the root crate never adopts it as a member.
+[workspace]

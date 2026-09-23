@@ -26,6 +26,22 @@ fn every_generated_file_is_present() {
 }
 
 #[test]
+fn checksums_cover_every_generated_file() {
+    let mut listed: Vec<String> = read("SHA256SUMS")
+        .lines()
+        .map(|l| l.split_once("  ").unwrap().1.to_owned())
+        .collect();
+    listed.sort();
+    let mut present: Vec<String> = std::fs::read_dir(source_dir())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().into_string().unwrap())
+        .filter(|name| name != "SHA256SUMS" && name != WASM_SOURCE_FILE)
+        .collect();
+    present.sort();
+    assert_eq!(listed, present);
+}
+
+#[test]
 fn sources_carry_the_declared_versions() {
     let header = read(HEADER_FILE);
     assert!(header
