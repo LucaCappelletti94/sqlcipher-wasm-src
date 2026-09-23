@@ -1,0 +1,2 @@
+sqlcipher/** -text linguist-vendored
+sqlcipher/sqlite3.c text -linguist-vendored

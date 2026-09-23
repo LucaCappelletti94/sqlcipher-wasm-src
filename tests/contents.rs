@@ -1,0 +1,100 @@
+//! The generated files agree with the versions the crate declares.
+
+use sqlcipher_wasm_src::{
+    source_dir, HEADER_FILE, LIBTOMCRYPT_VERSION, SQLCIPHER_VERSION, SQLITE_VERSION,
+    WASM_SOURCE_FILE,
+};
+
+fn read(file: &str) -> String {
+    String::from_utf8_lossy(&std::fs::read(source_dir().join(file)).unwrap()).into_owned()
+}
+
+#[test]
+fn every_generated_file_is_present() {
+    for file in [
+        WASM_SOURCE_FILE,
+        HEADER_FILE,
+        "sqlcipher.c",
+        "libtomcrypt.c",
+        "tomcrypt.h",
+        "LICENSE-sqlcipher",
+        "LICENSE-libtomcrypt",
+        "SHA256SUMS",
+    ] {
+        assert!(source_dir().join(file).is_file(), "{file} missing");
+    }
+}
+
+#[test]
+fn sources_carry_the_declared_versions() {
+    let header = read(HEADER_FILE);
+    assert!(header
+        .lines()
+        .any(|l| l.starts_with("#define SQLITE_VERSION ")
+            && l.contains(&format!("\"{SQLITE_VERSION}\""))));
+    let sqlcipher = read("sqlcipher.c");
+    assert!(sqlcipher
+        .lines()
+        .any(|l| l.trim() == format!("#define CIPHER_VERSION_NUMBER {SQLCIPHER_VERSION}")));
+    let tomcrypt = read("tomcrypt.h");
+    assert!(tomcrypt
+        .lines()
+        .any(|l| l.starts_with("#define SCRYPT")
+            && l.contains(&format!("\"{LIBTOMCRYPT_VERSION}\""))));
+}
+
+#[test]
+fn crate_version_encodes_the_release() {
+    let mut parts = SQLCIPHER_VERSION
+        .split('.')
+        .map(|p| p.parse::<u64>().unwrap());
+    let (major, minor, patch) = (
+        parts.next().unwrap(),
+        parts.next().unwrap(),
+        parts.next().unwrap(),
+    );
+    let (numbers, metadata) = env!("CARGO_PKG_VERSION").split_once('+').unwrap();
+    assert!(
+        numbers.starts_with(&format!("{}.{patch}.", major * 100 + minor)),
+        "{numbers}"
+    );
+    assert_eq!(metadata, format!("sqlcipher-{SQLCIPHER_VERSION}-sqlite-{SQLITE_VERSION}-libtomcrypt-{LIBTOMCRYPT_VERSION}"));
+}
+
+#[test]
+fn sqlcipher_finalizer_is_skipped_on_wasm() {
+    let sqlcipher = read("sqlcipher.c");
+    let registration = sqlcipher
+        .lines()
+        .position(|l| l.contains("section(\".fini_array\")"))
+        .expect("SQLCipher no longer registers a .fini_array finalizer, so the patch is obsolete");
+    let guard = sqlcipher.lines().nth(registration - 1).unwrap();
+    assert_eq!(guard.trim(), "#elif !defined(__wasm__)");
+}
+
+#[test]
+fn tomcrypt_headers_are_included_by_quote() {
+    for file in ["sqlcipher.c", "tomcrypt.h"] {
+        assert!(
+            !read(file).contains("#include <tomcrypt"),
+            "{file} still includes tomcrypt by angle brackets"
+        );
+    }
+}
+
+#[test]
+fn wasm_wrapper_keeps_its_load_bearing_settings() {
+    let wrapper = read(WASM_SOURCE_FILE);
+    for setting in [
+        "#define SQLITE_HAS_CODEC 1",
+        "#define SQLCIPHER_CRYPTO_LIBTOMCRYPT 1",
+        "#define SQLITE_EXTRA_INIT sqlcipher_wasm_extra_init",
+        "#define SQLITE_EXTRA_SHUTDOWN sqlcipher_extra_shutdown",
+        "#define LTC_PRNG_ENABLE_LTC_RNG",
+        "#define XCLOCK sqlcipher_wasm_no_clock",
+        "ltc_rng = sqlcipher_wasm_rng;",
+        "if (getentropy(out, len) != 0) abort();",
+    ] {
+        assert!(wrapper.contains(setting), "wrapper lost `{setting}`");
+    }
+}
