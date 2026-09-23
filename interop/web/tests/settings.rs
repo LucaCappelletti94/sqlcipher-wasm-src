@@ -1,4 +1,4 @@
-//! Cipher-settings interop matrix: native writes, Wasm reads; Wasm writes, native reads.
+//! Every cipher setting crosses both ways, native writing for Wasm and Wasm writing for native.
 use sqlite_wasm_rs as ffi;
 use sqlite_wasm_rs::vfs::memvfs::MemVfsUtil;
 use sqlite_wasm_rs::vfs::transfer::DbTransfer;
@@ -15,7 +15,7 @@ extern "C" {
 }
 
 const DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../fixtures");
-// Use the passphrase key throughout; KDF settings don't apply to raw keys.
+// KDF settings only affect passphrase keys, so every case uses one.
 const PASS: &str = "PRAGMA key = 'correct horse battery staple'";
 
 struct Db(*mut ffi::sqlite3);
@@ -60,7 +60,7 @@ fn memvfs() -> MemVfsUtil {
     unsafe { MemVfsUtil::get() }.unwrap()
 }
 
-/// First column of the first row; panics on prepare error, missing row, or NULL column.
+/// First column of the first row, panicking on any error, missing row or `NULL`.
 fn read_first(db: &Db, sql: &str) -> String {
     let sql_c = CString::new(sql).unwrap();
     let mut stmt = std::ptr::null_mut();
@@ -82,7 +82,7 @@ fn read_first(db: &Db, sql: &str) -> String {
         ffi::SQLITE_ROW,
         "no row from: {sql:?}"
     );
-    // t is valid while stmt is open; copy before finalize
+    // The text dies with the statement, so it is copied before finalizing.
     let val = unsafe {
         let t = ffi::sqlite3_column_text(stmt, 0);
         assert!(!t.is_null(), "NULL column 0 from: {sql:?}");
@@ -92,11 +92,10 @@ fn read_first(db: &Db, sql: &str) -> String {
     val
 }
 
-/// Returns false when the SQL fails to prepare or to step; true otherwise.
+/// Whether the SQL prepares and steps without error.
 fn can_execute(db: &Db, sql: &str) -> bool {
     let sql_c = CString::new(sql).unwrap();
     let mut stmt = std::ptr::null_mut();
-    // sqlite3_prepare_v2 sets stmt to NULL on failure; sqlite3_finalize(NULL) is safe
     let ok = unsafe {
         ffi::sqlite3_prepare_v2(
             db.0,
@@ -134,7 +133,7 @@ fn integrity_check_row(db: &Db) -> Option<String> {
     let row = unsafe {
         if ffi::sqlite3_step(stmt) == ffi::SQLITE_ROW {
             let t = ffi::sqlite3_column_text(stmt, 0);
-            // t is valid while stmt is open; copy before finalize
+            // The text dies with the statement, so it is copied before finalizing.
             if t.is_null() {
                 Some(String::new())
             } else {
@@ -312,7 +311,7 @@ fn run_setting(util: &MemVfsUtil, case: &Case) {
             db.exec(p);
         }
         db.exec("CREATE TABLE t(v TEXT); INSERT INTO t VALUES ('written in the browser');");
-        // Capture cipher_salt before the connection closes; only needed for plaintext_header.
+        // A plaintext header hides the salt, so it is read before the connection closes.
         case.uses_salt
             .then(|| read_first(&db, "PRAGMA cipher_salt"))
         // db closes here, flushing writes to memvfs

@@ -13,7 +13,7 @@ cargo run --release --manifest-path native/Cargo.toml -- write "$FIXTURES"
 cargo run --release --manifest-path native/Cargo.toml -- read "$FIXTURES"
 (cd web && SQLITE_WASM_RS_SOURCE_DIR="$SOURCE_DIR" WASM_BINDGEN_USE_BROWSER=1 \
     nice wasm-pack test --headless --chrome --release \
-    --test encryption --test broken_crypto --test broken_crypto_plain)
+    --test encryption --test broken_crypto --test broken_crypto_plain --test sahpool)
 (cd web && SQLITE_WASM_RS_SOURCE_DIR="$SOURCE_DIR" WASM_BINDGEN_USE_BROWSER=1 \
     nice wasm-pack test --headless --firefox --release \
-    --test encryption --test broken_crypto --test broken_crypto_plain)
+    --test encryption --test broken_crypto --test broken_crypto_plain --test sahpool)

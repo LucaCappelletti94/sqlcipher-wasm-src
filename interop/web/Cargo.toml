@@ -17,6 +17,7 @@ js-sys = "0.3"
 # Released 0.40.2 pins sqlite-wasm-rs 0.5, which has no SQLITE_WASM_RS_SOURCE_DIR.
 rusqlite = { git = "https://github.com/rusqlite/rusqlite", rev = "b6476751216cb8569a3f747611f37a394a8de4e3" }
 wasm-bindgen-test = "0.3"
+sqlite-wasm-vfs = { version = "0.3", features = ["sahpool"] }
 
 # The crate's table, minus unsafe_code (FFI) and missing_docs and cargo (never published).
 [lints.rust]

@@ -75,7 +75,6 @@ fn rusqlite_reads_native_and_writes_for_native() {
 
 #[wasm_bindgen_test]
 fn rusqlite_rekey_from_raw_to_pass() {
-    // PRAGMA rekey is a SQLCipher vendor pragma; diesel cannot express it.
     // SAFETY: the memvfs is registered during rusqlite's library initialisation, which
     // occurs when the wasm module is loaded, before any test executes.
     let util = unsafe { MemVfsUtil::get() }.unwrap();
@@ -86,7 +85,6 @@ fn rusqlite_rekey_from_raw_to_pass() {
     .unwrap();
     {
         let conn = Connection::open("rl-rekey-raw.db").unwrap();
-        // PRAGMA key and PRAGMA rekey are vendor pragmas; diesel cannot express them.
         conn.execute_batch(RAW).unwrap();
         conn.execute_batch(REKEY_PASS).unwrap();
     }
@@ -110,7 +108,6 @@ fn rusqlite_rekey_from_pass_to_raw() {
     .unwrap();
     {
         let conn = Connection::open("rl-rekey-pass.db").unwrap();
-        // PRAGMA key / PRAGMA rekey are vendor pragmas; diesel cannot express them.
         conn.execute_batch(PASS).unwrap();
         conn.execute_batch(REKEY_RAW).unwrap();
     }
@@ -133,8 +130,7 @@ fn rusqlite_compat3() {
     .unwrap();
     {
         let conn = Connection::open("rl-compat3.db").unwrap();
-        // PRAGMA key creates the codec context; cipher_compatibility = 3 then sets compat
-        // mode on that context. cipher_compatibility has no effect before the key.
+        // `cipher_compatibility` only applies once `PRAGMA key` has created the codec.
         conn.execute_batch(
             "PRAGMA key = 'correct horse battery staple'; PRAGMA cipher_compatibility = 3;",
         )
@@ -184,8 +180,6 @@ fn rusqlite_cipher_integrity_check() {
         util.import_db_unchecked(&vfs_name, &read_file_sync(&format!("{DIR}/{name}")))
             .unwrap();
         let conn = Connection::open(&vfs_name).unwrap();
-        // PRAGMA key and PRAGMA cipher_integrity_check are vendor pragmas; diesel cannot
-        // express them.
         conn.execute_batch(key).unwrap();
         let rows: Vec<String> = conn
             .prepare("PRAGMA cipher_integrity_check")

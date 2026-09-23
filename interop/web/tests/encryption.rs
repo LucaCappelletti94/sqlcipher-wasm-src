@@ -1,8 +1,9 @@
-//! Browser-safe encrypted SQLCipher tests; all operations are in-memory via memvfs.
+//! SQLCipher on the in-memory VFS, with nothing that needs Node, so browsers run it too.
 use rusqlite::Connection;
 use sqlite_wasm_rs as ffi;
 use sqlite_wasm_rs::vfs::memvfs::MemVfsUtil;
 use sqlite_wasm_rs::vfs::transfer::DbTransfer;
+use sqlite_wasm_rs::vfs::VfsFilesManager;
 use std::ffi::{CStr, CString};
 use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -294,5 +295,67 @@ fn cipher_integrity_check_corrupted() {
     assert!(
         matches!(db.one("PRAGMA cipher_integrity_check"), Ok(Some(_))),
         "ic-corrupt.db integrity check should detect the corrupted page"
+    );
+}
+
+#[wasm_bindgen_test]
+fn wal_on_a_keyed_database() {
+    let util = memvfs();
+    // A plain database proves the journal is observable and would show a leak.
+    for (name, key, leaks) in [
+        ("journal-plain.db", None, true),
+        ("journal-keyed.db", Some(RAW), false),
+    ] {
+        let db = Db::open(name);
+        if let Some(key) = key {
+            db.exec(key);
+        }
+        // rsqlite-vfs 0.2 memvfs has no shared memory, so SQLite keeps the rollback journal.
+        assert_eq!(
+            db.one("PRAGMA journal_mode=WAL").unwrap().as_deref(),
+            Some("delete")
+        );
+        db.exec("CREATE TABLE t(v TEXT); INSERT INTO t VALUES ('journal-secret')");
+        // The journal holds the pages as they were, so the committed row is what it could leak.
+        db.exec("BEGIN; UPDATE t SET v = 'replaced'");
+        let journal = format!("{name}-journal");
+        assert!(
+            util.names().unwrap().contains(&journal),
+            "{journal} not visible"
+        );
+        let bytes = util.export_db(&journal).unwrap();
+        assert_eq!(
+            bytes.windows(14).any(|w| w == b"journal-secret"),
+            leaks,
+            "{journal}"
+        );
+        db.exec("ROLLBACK");
+    }
+}
+
+#[wasm_bindgen_test]
+fn memory_security_is_sticky() {
+    memvfs();
+    let db = Db::open("memsec.db");
+    db.exec(RAW);
+
+    // SQLCipher 4.19.0 starts with memory security off.
+    assert_eq!(
+        db.one("PRAGMA cipher_memory_security").unwrap().as_deref(),
+        Some("0"),
+        "cipher_memory_security must be 0 by default"
+    );
+    db.exec("PRAGMA cipher_memory_security = ON");
+    assert_eq!(
+        db.one("PRAGMA cipher_memory_security").unwrap().as_deref(),
+        Some("1"),
+        "cipher_memory_security must be 1 after enabling"
+    );
+    // Once on it stays on, so OFF is ignored.
+    db.exec("PRAGMA cipher_memory_security = OFF");
+    assert_eq!(
+        db.one("PRAGMA cipher_memory_security").unwrap().as_deref(),
+        Some("1"),
+        "cipher_memory_security must remain 1 after OFF"
     );
 }

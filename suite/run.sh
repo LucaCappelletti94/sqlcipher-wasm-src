@@ -58,12 +58,14 @@ for test in test/sqlcipher-*.test; do
         listed=$((listed + 1))
         case " $EXPECTED_FAILURES " in *" $case_name "*) ;; *) unexpected="$unexpected $case_name" ;; esac
     done
+    # LeakSanitizer reports at exit, after the summary, so the log itself is checked too.
+    sanitizer=$(grep -m 1 -E '^==[0-9]+==(ERROR|WARNING): |runtime error: ' "$name.log" || true)
     # Every error must be a named failure, and every named failure an expected one.
-    if [ -n "$summary" ] && [ "${summary%% errors*}" -eq "$listed" ] && [ -z "$unexpected" ]; then
+    if [ -n "$summary" ] && [ "${summary%% errors*}" -eq "$listed" ] && [ -z "$unexpected" ] && [ -z "$sanitizer" ]; then
         echo "pass  $name  ${summary%% tests*} tests"
     else
-        echo "FAIL  $name  ${summary:-no summary line}${unexpected:+, unexpected failures:$unexpected}"
-        grep -E '^!' "$name.log" | head -n 20
+        echo "FAIL  $name  ${summary:-no summary line}${unexpected:+, unexpected failures:$unexpected}${sanitizer:+, $sanitizer}"
+        grep -E '^!|^==[0-9]+==|^SUMMARY: |runtime error: ' "$name.log" | head -n 20
         failed_files="$failed_files $name"
     fi
 done
