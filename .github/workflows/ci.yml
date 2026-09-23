@@ -133,3 +133,44 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo apt-get install -y --no-install-recommends tcl-dev
       - run: ./suite/run.sh
+
+  sanitizers:
+    name: SQLCipher's own tests are clean under ASAN and UBSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: sudo apt-get install -y --no-install-recommends tcl-dev
+      - run: ./suite/run.sh
+        env:
+          SANITIZE: "1"
+
+  rusqlite-pin:
+    name: A released rusqlite still cannot take sqlite-wasm-rs 0.6
+    runs-on: ubuntu-latest
+    steps:
+      # Goes red once interop/web can drop its rusqlite git pin, which Dependabot cannot move.
+      - run: |
+          set -euo pipefail
+          latest=$(curl -sfL -A "sqlcipher-wasm-src CI" https://crates.io/api/v1/crates/rusqlite | jq -r .crate.max_stable_version)
+          cargo new --lib --quiet "$RUNNER_TEMP/probe"
+          printf 'rusqlite = "=%s"\nsqlite-wasm-rs = "0.6"\n' "$latest" >> "$RUNNER_TEMP/probe/Cargo.toml"
+          if cargo generate-lockfile --manifest-path "$RUNNER_TEMP/probe/Cargo.toml" 2>/dev/null; then
+            echo "::error::rusqlite $latest accepts sqlite-wasm-rs 0.6, so interop/web can use it instead of the git pin"
+            exit 1
+          fi
+          echo "rusqlite $latest still takes an older sqlite-wasm-rs, so the git pin stays"
+
+  interop-msrv:
+    name: Interop builds on its declared Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: |
+          set -euo pipefail
+          floor() { cargo metadata --no-deps --format-version 1 --manifest-path "interop/$1/Cargo.toml" | jq -r '.packages[0].rust_version'; }
+          native=$(floor native)
+          web=$(floor web)
+          rustup toolchain install "$native" --profile minimal
+          rustup toolchain install "$web" --profile minimal --target wasm32-unknown-unknown
+          cargo "+$native" check --manifest-path interop/native/Cargo.toml --all-targets
+          SQLITE_WASM_RS_SOURCE_DIR="$PWD/sqlcipher" cargo "+$web" check --manifest-path interop/web/Cargo.toml --target wasm32-unknown-unknown --all-targets

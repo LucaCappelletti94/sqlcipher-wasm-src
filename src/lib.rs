@@ -17,7 +17,7 @@ pub const WASM_SOURCE_FILE: &str = "sqlite3.c";
 /// Public SQLCipher header inside [`source_dir`].
 pub const HEADER_FILE: &str = "sqlite3.h";
 
-/// Directory holding the generated sources, laid out for `SQLITE_WASM_RS_SOURCE_DIR`.
+/// Directory holding the generated sources, laid out for `SQLITE_WASM_RS_SOURCE_DIR`, at the path this crate was compiled from.
 #[must_use]
 pub fn source_dir() -> &'static Path {
     Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/sqlcipher"))

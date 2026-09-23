@@ -1,5 +1,4 @@
-//! write: creates native-raw.db, native-pass.db, native-rekey-raw.db, native-rekey-pass.db,
-//! native-compat3-pass.db. read: opens the files the browser tests wrote.
+//! write: creates native-*.db fixture files.  read: opens the files the browser tests wrote.
 use rusqlite::Connection;
 
 const RAW: &str =
@@ -36,6 +35,217 @@ fn assert_integrity(db: &Connection, name: &str) {
         errors.is_empty(),
         "{name}: cipher_integrity_check failed: {errors:?}"
     );
+}
+
+/// Passes when errors is empty or contains only the HMAC-disabled message.
+fn assert_setting_integrity(db: &Connection, name: &str) {
+    let errors: Vec<String> = db
+        .prepare("PRAGMA cipher_integrity_check")
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    // cipher_use_hmac = OFF and compat1 always return one fixed message instead of an empty result
+    let ok = errors.is_empty()
+        || errors.as_slice() == ["HMAC is not enabled, unable to integrity check"];
+    assert!(ok, "{name}: cipher_integrity_check: {errors:?}");
+}
+
+struct SettingCase {
+    slug: &'static str,
+    key: &'static str,
+    pragmas: &'static [&'static str],
+    /// When true, opening the file without pragmas must fail.
+    check_fail: bool,
+    /// When true, reads/writes a .salt sidecar file for `cipher_plaintext_header_size` = 32.
+    uses_salt: bool,
+}
+
+const SETTING_CASES: &[SettingCase] = &[
+    SettingCase {
+        slug: "page1024",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_page_size = 1024"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    SettingCase {
+        slug: "page65536",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_page_size = 65536"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    // kdf_iter and kdf/hmac algorithm settings only affect passphrases, not raw keys
+    SettingCase {
+        slug: "kdfiter1",
+        key: PASS,
+        pragmas: &["PRAGMA kdf_iter = 1"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    SettingCase {
+        slug: "kdfiter1000000",
+        key: PASS,
+        pragmas: &["PRAGMA kdf_iter = 1000000"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    SettingCase {
+        slug: "hmacsha1",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_hmac_algorithm = HMAC_SHA1"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    SettingCase {
+        slug: "hmacsha256",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_hmac_algorithm = HMAC_SHA256"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    SettingCase {
+        slug: "kdfsha1",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_kdf_algorithm = PBKDF2_HMAC_SHA1"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    SettingCase {
+        slug: "kdfsha256",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_kdf_algorithm = PBKDF2_HMAC_SHA256"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    SettingCase {
+        slug: "plaintext32",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_plaintext_header_size = 32"],
+        check_fail: true,
+        uses_salt: true,
+    },
+    SettingCase {
+        slug: "nohmac",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_use_hmac = OFF"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    SettingCase {
+        slug: "compat1",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_compatibility = 1"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    SettingCase {
+        slug: "compat2",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_compatibility = 2"],
+        check_fail: true,
+        uses_salt: false,
+    },
+    // compat4 sets the SQLCipher 4 defaults so reading without the pragma uses the same settings
+    SettingCase {
+        slug: "compat4",
+        key: PASS,
+        pragmas: &["PRAGMA cipher_compatibility = 4"],
+        check_fail: false,
+        uses_salt: false,
+    },
+];
+
+fn write_setting(dir: &str, case: &SettingCase) {
+    let name = format!("native-setting-{}.db", case.slug);
+    let path = format!("{dir}/{name}");
+    let _ = std::fs::remove_file(&path);
+    let db = Connection::open(&path).unwrap();
+    db.execute_batch(case.key).unwrap();
+    for &p in case.pragmas {
+        db.execute_batch(p).unwrap();
+    }
+    let v = cipher_version(&db);
+    db.execute_batch("CREATE TABLE t(v TEXT); INSERT INTO t VALUES ('written natively');")
+        .unwrap();
+    if case.uses_salt {
+        let salt: String = db
+            .query_row("PRAGMA cipher_salt", [], |r| r.get(0))
+            .unwrap();
+        std::fs::write(
+            format!("{dir}/native-setting-{}.salt", case.slug),
+            salt.as_bytes(),
+        )
+        .unwrap();
+    }
+    drop(db);
+    let bytes = std::fs::read(&path).unwrap();
+    if case.uses_salt {
+        // cipher_plaintext_header_size leaves the SQLite file header visible in plaintext
+        assert!(
+            bytes.starts_with(b"SQLite format 3\0"),
+            "{name}: expected plaintext SQLite header"
+        );
+    } else {
+        assert!(
+            !bytes.starts_with(b"SQLite format 3"),
+            "{name} is not encrypted"
+        );
+    }
+    assert!(
+        !bytes.windows(16).any(|w| w == b"written natively"),
+        "{name} leaks plaintext"
+    );
+    println!("native SQLCipher {v} wrote {name}, {} bytes", bytes.len());
+}
+
+fn read_setting(dir: &str, case: &SettingCase) {
+    let name = format!("web-setting-{}.db", case.slug);
+    let path = format!("{dir}/{name}");
+    let salt_pragma = case.uses_salt.then(|| {
+        let s = std::fs::read_to_string(format!("{dir}/web-setting-{}.salt", case.slug)).unwrap();
+        // Double-quoted identifier delivers x'hex' as zRight to the SQLCipher handler
+        format!("PRAGMA cipher_salt = \"x'{s}'\"")
+    });
+    let db = Connection::open(&path).unwrap();
+    db.execute_batch(case.key).unwrap();
+    if let Some(sp) = salt_pragma.as_deref() {
+        db.execute_batch(sp).unwrap();
+    }
+    for &p in case.pragmas {
+        db.execute_batch(p).unwrap();
+    }
+    assert_setting_integrity(&db, &name);
+    let v: String = db.query_row("SELECT v FROM t", [], |r| r.get(0)).unwrap();
+    assert_eq!(v, "written in the browser", "{name}");
+    drop(db);
+    if case.check_fail {
+        let wrong = Connection::open(&path).unwrap();
+        wrong.execute_batch(case.key).unwrap();
+        assert!(
+            wrong
+                .query_row("SELECT count(*) FROM sqlite_schema", [], |r| r
+                    .get::<_, i64>(0))
+                .is_err(),
+            "{name}: accessible without required setting"
+        );
+    }
+    // compat4 sets the SQLCipher 4 defaults so reading without the pragma uses the same settings
+    println!("native SQLCipher read {name}: {v:?}");
+}
+
+fn write_settings(dir: &str) {
+    for case in SETTING_CASES {
+        write_setting(dir, case);
+    }
+}
+
+fn read_settings(dir: &str) {
+    for case in SETTING_CASES {
+        read_setting(dir, case);
+    }
 }
 
 fn write_one(dir: &str, name: &str, db: Connection) {
@@ -96,6 +306,7 @@ fn cmd_write(dir: &str) {
     let path = format!("{dir}/{name}");
     let _ = std::fs::remove_file(&path);
     write_one(dir, name, open_compat3(&path, PASS));
+    write_settings(dir);
 }
 
 fn cmd_read(dir: &str) {
@@ -138,6 +349,7 @@ fn cmd_read(dir: &str) {
             "PRAGMA key = 'wrong'",
         );
     }
+    read_settings(dir);
 }
 
 fn main() {

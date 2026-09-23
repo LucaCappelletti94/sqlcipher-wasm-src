@@ -2,6 +2,8 @@
 name = "interop-web"
 version = "0.0.0"
 edition = "2021"
+# rusqlite master needs 1.88.
+rust-version = "1.88"
 publish = false
 description = "Runs SQLCipher built from this crate inside sqlite-wasm-rs under Node.js"
 

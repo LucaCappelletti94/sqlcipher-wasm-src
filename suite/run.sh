@@ -13,19 +13,34 @@ SKIP_FILES="sqlcipher-template sqlcipher-threads"
 # verify-memory-security-log-path needs a cipher_log destination, which the shipped SQLCIPHER_OMIT_LOG removes.
 EXPECTED_FAILURES="verify-memory-security-log-path"
 
+# SANITIZE=1 builds under clang with AddressSanitizer and UBSan, where any report ends the file without a summary.
+CC=cc
+OPT="-O2"
+if [ -n "${SANITIZE:-}" ]; then
+    CC=clang
+    OPT="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all"
+    ASAN_OPTIONS="detect_leaks=1:abort_on_error=1"
+    UBSAN_OPTIONS="print_stacktrace=1:halt_on_error=1"
+    export ASAN_OPTIONS UBSAN_OPTIONS
+fi
+
 trust_keys "$WORK"
 fetch_sqlcipher "$WORK"
 cd "$WORK/sqlcipher"
 # TCL_LIB names the tclConfig.sh directory when configure cannot find it.
-./configure ${TCL_LIB:+--with-tcl="$TCL_LIB"} > configure.log
+CC="$CC" ./configure ${TCL_LIB:+--with-tcl="$TCL_LIB"} > configure.log
 make sqlite3.c > make.log
 # SQLCipher needs SQLITE_TEMP_STORE=2, which sqlite-wasm-rs sets on its own command line.
 printf '#define SQLITE_TEMP_STORE 2\n#include "%s/sqlcipher/sqlite3.c"\n' "$ROOT" > sqlite3.c
 # SQLITE_HAS_CODEC stops every file skipping itself, SQLCIPHER_TEST enables the error pragmas, FTS5 is used by export tests.
-make testfixture CFLAGS="-O2 -DSQLITE_HAS_CODEC=1 -DSQLCIPHER_TEST=1 -DSQLITE_ENABLE_FTS5=1" > testfixture.log 2>&1
+make testfixture CC="$CC" CFLAGS="$OPT -DSQLITE_HAS_CODEC=1 -DSQLCIPHER_TEST=1 -DSQLITE_ENABLE_FTS5=1" \
+    LDFLAGS="${SANITIZE:+$OPT}" > testfixture.log 2>&1
 
 nm testfixture | grep -q sqlcipher_wasm_extra_init ||
     { echo "testfixture was not built from sqlcipher/sqlite3.c" >&2; exit 1; }
+# A clean sanitizer run only counts if the binary is really instrumented.
+[ -z "${SANITIZE:-}" ] || { nm testfixture | grep -q __asan_report_load && nm testfixture | grep -q __ubsan_handle; } ||
+    { echo "testfixture is not instrumented" >&2; exit 1; }
 printf 'sqlite3 db :memory:\ndb eval {PRAGMA key = %s}\nputs "[db eval {PRAGMA cipher_version}] [db eval {PRAGMA cipher_provider}]"\n' "'probe'" > probe.tcl
 echo "Testing SQLCipher $(./testfixture probe.tcl)"
 

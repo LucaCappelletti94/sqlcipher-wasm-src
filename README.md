@@ -9,7 +9,18 @@
 [![docs.rs](https://docs.rs/sqlcipher-wasm-src/badge.svg)](https://docs.rs/sqlcipher-wasm-src)
 [![license](https://img.shields.io/badge/license-MIT%20AND%20BSD--3--Clause%20AND%20blessing%20AND%20WTFPL-blue.svg)](https://github.com/LucaCappelletti94/sqlcipher-wasm-src/blob/main/Cargo.toml)
 
-[SQLCipher](https://github.com/sqlcipher/sqlcipher) with its [libtomcrypt](https://github.com/libtom/libtomcrypt) crypto provider as C source, for building SQLCipher where no system crypto library exists, such as `wasm32-unknown-unknown` through [`sqlite-wasm-rs`](https://github.com/Spxg/sqlite-wasm-rs). An experiment. `rusqlite` master picks it up in the browser with no feature enabled, while `rusqlite` 0.40.2 cannot, as it takes `sqlite-wasm-rs` 0.5.
+[SQLCipher](https://github.com/sqlcipher/sqlcipher) with its [libtomcrypt](https://github.com/libtom/libtomcrypt) crypto provider as C source, for building SQLCipher where no system crypto library exists, such as `wasm32-unknown-unknown` through [`sqlite-wasm-rs`](https://github.com/Spxg/sqlite-wasm-rs). An experiment.
+
+`sqlite-wasm-rs` 0.6 compiles these sources instead of plain SQLite when its build script sees `SQLITE_WASM_RS_SOURCE_DIR`. A build script only sees the environment Cargo started with and `[env]` from `.cargo/config.toml`, so a downstream `build.rs` cannot set it. Add this crate as a dependency, so the lockfile pins the sources, and point the variable at them.
+
+```sh
+export SQLITE_WASM_RS_SOURCE_DIR="$(cargo metadata --format-version 1 \
+  | jq -r '.packages[] | select(.name == "sqlcipher-wasm-src") | .manifest_path' \
+  | xargs dirname)/sqlcipher"
+cargo build --target wasm32-unknown-unknown
+```
+
+`rusqlite` needs no feature for this, but only its master branch takes `sqlite-wasm-rs` 0.6, as 0.40.2 still takes 0.5. `interop/run.sh` builds this way. A build script compiling the sources itself gets the same directory from `source_dir()`, which is the path the crate was compiled from.
 
 ```rust
 let dir = sqlcipher_wasm_src::source_dir();

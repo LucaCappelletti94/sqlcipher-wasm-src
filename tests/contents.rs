@@ -90,7 +90,22 @@ fn sqlcipher_finalizer_is_skipped_on_wasm() {
 
 #[test]
 fn tomcrypt_headers_are_included_by_quote() {
-    for file in ["sqlcipher.c", "tomcrypt.h"] {
+    let sources: Vec<String> = std::fs::read_dir(source_dir())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().into_string().unwrap())
+        .filter(|name| {
+            matches!(
+                std::path::Path::new(name)
+                    .extension()
+                    .and_then(|e| e.to_str()),
+                Some("c" | "h")
+            )
+        })
+        .collect();
+    assert!(sources
+        .iter()
+        .any(|name| name == "tomcrypt_private.h" || name == "tomcrypt_cipher.h"));
+    for file in &sources {
         assert!(
             !read(file).contains("#include <tomcrypt"),
             "{file} still includes tomcrypt by angle brackets"
