@@ -16,5 +16,15 @@ js-sys = "0.3"
 rusqlite = { git = "https://github.com/rusqlite/rusqlite", rev = "b6476751216cb8569a3f747611f37a394a8de4e3" }
 wasm-bindgen-test = "0.3"
 
+# The crate's table, minus unsafe_code (FFI) and missing_docs and cargo (never published).
+[lints.rust]
+rust_2018_idioms = { level = "warn", priority = -1 }
+unreachable_pub = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+allow_attributes_without_reason = "warn"
+
 # Standalone, so the root crate never adopts it as a member.
 [workspace]

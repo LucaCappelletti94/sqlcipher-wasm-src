@@ -1,4 +1,5 @@
-//! write: creates native-raw.db and native-pass.db. read: opens the files the browser tests wrote.
+//! write: creates native-raw.db, native-pass.db, native-rekey-raw.db, native-rekey-pass.db,
+//! native-compat3-pass.db. read: opens the files the browser tests wrote.
 use rusqlite::Connection;
 
 const RAW: &str =
@@ -11,56 +12,139 @@ fn open(path: &str, key: &str) -> Connection {
     db
 }
 
+fn open_compat3(path: &str, key: &str) -> Connection {
+    let db = Connection::open(path).unwrap();
+    db.execute_batch(key).unwrap();
+    db.execute_batch("PRAGMA cipher_compatibility = 3").unwrap();
+    db
+}
+
+fn cipher_version(db: &Connection) -> String {
+    db.query_row("PRAGMA cipher_version", [], |r| r.get(0))
+        .unwrap()
+}
+
+fn assert_integrity(db: &Connection, name: &str) {
+    let errors: Vec<String> = db
+        .prepare("PRAGMA cipher_integrity_check")
+        .unwrap()
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(
+        errors.is_empty(),
+        "{name}: cipher_integrity_check failed: {errors:?}"
+    );
+}
+
+fn write_one(dir: &str, name: &str, db: Connection) {
+    let v = cipher_version(&db);
+    db.execute_batch("CREATE TABLE t(v TEXT); INSERT INTO t VALUES ('written natively');")
+        .unwrap();
+    drop(db);
+    let bytes = std::fs::read(format!("{dir}/{name}")).unwrap();
+    assert!(
+        !bytes.starts_with(b"SQLite format 3"),
+        "{name} is not encrypted"
+    );
+    assert!(
+        !bytes.windows(16).any(|w| w == b"written natively"),
+        "{name} leaks plaintext"
+    );
+    println!(
+        "native SQLCipher {v} wrote {name}, {} bytes, encrypted",
+        bytes.len()
+    );
+}
+
+fn wrong_key_rejected(path: &str, name: &str, wrong_key: &str) {
+    let wrong = Connection::open(path).unwrap();
+    wrong.execute_batch(wrong_key).unwrap();
+    assert!(
+        wrong
+            .query_row("SELECT count(*) FROM sqlite_schema", [], |r| {
+                r.get::<_, i64>(0)
+            })
+            .is_err(),
+        "{name}: wrong key was accepted"
+    );
+}
+
+fn read_one(dir: &str, name: &str, db: &Connection, expected: &str, wrong_key: &str) {
+    assert_integrity(db, name);
+    let v: String = db.query_row("SELECT v FROM t", [], |r| r.get(0)).unwrap();
+    assert_eq!(v, expected);
+    wrong_key_rejected(&format!("{dir}/{name}"), name, wrong_key);
+    println!("native SQLCipher read {name}: {v:?}, wrong key rejected");
+}
+
+fn cmd_write(dir: &str) {
+    for (name, key) in [
+        ("native-raw.db", RAW),
+        ("native-pass.db", PASS),
+        // wasm tests rekey these
+        ("native-rekey-raw.db", RAW),
+        ("native-rekey-pass.db", PASS),
+    ] {
+        let path = format!("{dir}/{name}");
+        let _ = std::fs::remove_file(&path);
+        write_one(dir, name, open(&path, key));
+    }
+    // `cipher_compatibility` is ignored until `PRAGMA key` has created the codec.
+    let name = "native-compat3-pass.db";
+    let path = format!("{dir}/{name}");
+    let _ = std::fs::remove_file(&path);
+    write_one(dir, name, open_compat3(&path, PASS));
+}
+
+fn cmd_read(dir: &str) {
+    for (name, key) in [
+        ("web-raw.db", RAW),
+        ("web-pass.db", PASS),
+        ("rusqlite-raw.db", RAW),
+        ("rusqlite-pass.db", PASS),
+    ] {
+        read_one(
+            dir,
+            name,
+            &open(&format!("{dir}/{name}"), key),
+            "written in the browser",
+            "PRAGMA key = 'wrong'",
+        );
+    }
+    // rekeyed by wasm tests
+    for (name, key, wrong_key) in [
+        ("web-rekey-to-pass.db", PASS, RAW),
+        ("web-rekey-to-raw.db", RAW, PASS),
+        ("rusqlite-rekey-to-pass.db", PASS, RAW),
+        ("rusqlite-rekey-to-raw.db", RAW, PASS),
+    ] {
+        read_one(
+            dir,
+            name,
+            &open(&format!("{dir}/{name}"), key),
+            "written natively",
+            wrong_key,
+        );
+    }
+    for name in ["web-compat3-pass.db", "rusqlite-compat3-pass.db"] {
+        // omitting compat3 makes any key fail on a compat3 file
+        read_one(
+            dir,
+            name,
+            &open_compat3(&format!("{dir}/{name}"), PASS),
+            "written in the browser",
+            "PRAGMA key = 'wrong'",
+        );
+    }
+}
+
 fn main() {
     let dir = std::env::args().nth(2).unwrap();
     match std::env::args().nth(1).unwrap().as_str() {
-        "write" => {
-            for (name, key) in [("native-raw.db", RAW), ("native-pass.db", PASS)] {
-                let path = format!("{dir}/{name}");
-                let _ = std::fs::remove_file(&path);
-                let db = open(&path, key);
-                let v: String = db
-                    .query_row("PRAGMA cipher_version", [], |r| r.get(0))
-                    .unwrap();
-                db.execute_batch(
-                    "CREATE TABLE t(v TEXT); INSERT INTO t VALUES ('written natively');",
-                )
-                .unwrap();
-                drop(db);
-                let bytes = std::fs::read(&path).unwrap();
-                assert!(
-                    !bytes.starts_with(b"SQLite format 3"),
-                    "{name} is not encrypted"
-                );
-                assert!(
-                    !bytes.windows(16).any(|w| w == b"written natively"),
-                    "{name} leaks plaintext"
-                );
-                println!(
-                    "native SQLCipher {v} wrote {name}, {} bytes, encrypted",
-                    bytes.len()
-                );
-            }
-        }
-        "read" => {
-            for (name, key) in [
-                ("web-raw.db", RAW),
-                ("web-pass.db", PASS),
-                ("rusqlite-raw.db", RAW),
-                ("rusqlite-pass.db", PASS),
-            ] {
-                let db = open(&format!("{dir}/{name}"), key);
-                let v: String = db.query_row("SELECT v FROM t", [], |r| r.get(0)).unwrap();
-                assert_eq!(v, "written in the browser");
-                let wrong = Connection::open(format!("{dir}/{name}")).unwrap();
-                wrong.execute_batch("PRAGMA key = 'wrong'").unwrap();
-                assert!(wrong
-                    .query_row("SELECT count(*) FROM sqlite_schema", [], |r| r
-                        .get::<_, i64>(0))
-                    .is_err());
-                println!("native SQLCipher read {name}: {v:?}, wrong key rejected");
-            }
-        }
+        "write" => cmd_write(&dir),
+        "read" => cmd_read(&dir),
         _ => unreachable!(),
     }
 }

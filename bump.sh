@@ -1,7 +1,7 @@
 #!/bin/sh -e
 
 # Moves the generated sources to SQLCipher release VERSION. Only an annotated tag is taken, and
-# upgrade.sh then accepts it only with a valid signature from the pinned key.
+# upgrade.sh then accepts it only with a valid signature from the pinned key in tools/releases.sh.
 VERSION=${1:?usage: bump.sh VERSION}
 echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "not a release version: $VERSION" >&2; exit 1; }
 
@@ -12,11 +12,11 @@ COMMIT=$(git ls-remote https://github.com/sqlcipher/sqlcipher.git "refs/tags/v${
 sed -i -E \
     -e "s/^SQLCIPHER_VERSION=\".*\"$/SQLCIPHER_VERSION=\"${VERSION}\"/" \
     -e "s/^SQLCIPHER_COMMIT=\".*\"$/SQLCIPHER_COMMIT=\"${COMMIT}\"/" \
-    upgrade.sh
+    tools/releases.sh
 ./upgrade.sh
 
 SQLITE_VERSION=$(sed -nE 's/^#define SQLITE_VERSION +"([0-9.]+)"$/\1/p' sqlcipher/sqlite3.h)
-LIBTOMCRYPT_VERSION=$(sed -nE 's/^LIBTOMCRYPT_VERSION="(.*)"$/\1/p' upgrade.sh)
+LIBTOMCRYPT_VERSION=$(sed -nE 's/^LIBTOMCRYPT_VERSION="(.*)"$/\1/p' tools/releases.sh)
 [ -n "$SQLITE_VERSION" ] || { echo "no SQLite version in sqlcipher/sqlite3.h" >&2; exit 1; }
 
 # The crate version encodes the release, so SQLCipher X.Y.Z becomes (100X+Y).Z.0.

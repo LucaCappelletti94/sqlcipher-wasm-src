@@ -104,7 +104,7 @@ jobs:
           git config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git checkout -b "$branch"
-          git add Cargo.toml Cargo.lock interop/web/Cargo.lock upgrade.sh src/lib.rs sqlcipher
+          git add Cargo.toml Cargo.lock interop/web/Cargo.lock tools/releases.sh src/lib.rs sqlcipher
           git commit -m "$title"
           # An unchanged push would only rerun every check, so the branch moves only when its
           # content changed or main moved under it.
@@ -123,7 +123,7 @@ jobs:
           [ "$open" -gt 0 ] || gh pr create \
             --base main --head "$branch" \
             --title "$title" \
-            --body "SQLCipher $VERSION, from https://github.com/sqlcipher/sqlcipher/releases/tag/v$VERSION. Its tag verified against the pinned key in keys/sqlcipher.asc, and the sources were generated from the commit it points at, $(sed -nE 's/^SQLCIPHER_COMMIT="(.*)"$/\1/p' upgrade.sh)."
+            --body "SQLCipher $VERSION, from https://github.com/sqlcipher/sqlcipher/releases/tag/v$VERSION. Its tag verified against the pinned key in keys/sqlcipher.asc, and the sources were generated from the commit it points at, $(sed -nE 's/^SQLCIPHER_COMMIT="(.*)"$/\1/p' tools/releases.sh)."
           # Every other release branch is superseded, whether its pull request is open or closed.
           gh pr list --state open --json number,headRefName \
             --jq ".[] | select(.headRefName | startswith(\"sqlcipher/v\")) | select(.headRefName != \"$branch\") | .number" \

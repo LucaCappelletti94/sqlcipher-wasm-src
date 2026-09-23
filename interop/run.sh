@@ -3,7 +3,15 @@
 # Native SQLCipher writes, the wasm build reads and writes back, native reads the result.
 cd "$(dirname "$0")"
 FIXTURES="$(pwd)/fixtures"
+# CI points SQLCIPHER_DIR at the packaged crate to prove what users download.
+SOURCE_DIR=$(cd "${SQLCIPHER_DIR:-../sqlcipher}" && pwd)
 rm -rf "$FIXTURES" && mkdir -p "$FIXTURES"
 cargo run --release --manifest-path native/Cargo.toml -- write "$FIXTURES"
-(cd web && SQLITE_WASM_RS_SOURCE_DIR="$(pwd)/../../sqlcipher" wasm-pack test --node --release)
+(cd web && SQLITE_WASM_RS_SOURCE_DIR="$SOURCE_DIR" wasm-pack test --node --release)
 cargo run --release --manifest-path native/Cargo.toml -- read "$FIXTURES"
+(cd web && SQLITE_WASM_RS_SOURCE_DIR="$SOURCE_DIR" WASM_BINDGEN_USE_BROWSER=1 \
+    nice wasm-pack test --headless --chrome --release \
+    --test encryption --test broken_crypto --test broken_crypto_plain)
+(cd web && SQLITE_WASM_RS_SOURCE_DIR="$SOURCE_DIR" WASM_BINDGEN_USE_BROWSER=1 \
+    nice wasm-pack test --headless --firefox --release \
+    --test encryption --test broken_crypto --test broken_crypto_plain)

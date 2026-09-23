@@ -22,7 +22,7 @@ fn open(name: &str) -> *mut ffi::sqlite3 {
     let mut db = std::ptr::null_mut();
     let flags = ffi::SQLITE_OPEN_READWRITE | ffi::SQLITE_OPEN_CREATE;
     assert_eq!(
-        unsafe { ffi::sqlite3_open_v2(name.as_ptr(), &mut db, flags, std::ptr::null()) },
+        unsafe { ffi::sqlite3_open_v2(name.as_ptr(), &raw mut db, flags, std::ptr::null()) },
         ffi::SQLITE_OK
     );
     db

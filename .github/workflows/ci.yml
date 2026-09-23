@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: shellcheck upgrade.sh bump.sh interop/run.sh
+      - run: shellcheck -x upgrade.sh bump.sh interop/run.sh suite/run.sh tools/releases.sh
       - name: actionlint
         run: |
           bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
@@ -89,6 +89,47 @@ jobs:
       - run: ./interop/run.sh
         env:
           WASM_BINDGEN_TEST_TIMEOUT: "300"
+      # A file missing from the package include list only shows up when building from the package.
+      - name: Interop against the packaged crate
+        run: |
+          set -eu
+          cargo package --quiet
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          SQLCIPHER_DIR="$PWD/target/package/sqlcipher-wasm-src-$version/sqlcipher" ./interop/run.sh
+        env:
+          WASM_BINDGEN_TEST_TIMEOUT: "300"
       - run: cargo clippy --manifest-path interop/web/Cargo.toml --target wasm32-unknown-unknown --all-targets -- -D warnings
         env:
           SQLITE_WASM_RS_SOURCE_DIR: ${{ github.workspace }}/sqlcipher
+
+  browsers:
+    name: Wasm SQLCipher runs in Chrome and Firefox
+    runs-on: ubuntu-latest
+    env:
+      SQLITE_WASM_RS_SOURCE_DIR: ${{ github.workspace }}/sqlcipher
+      WASM_BINDGEN_USE_BROWSER: "1"
+      WASM_BINDGEN_TEST_TIMEOUT: "300"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@7623a79cdfecb99d681017af368ca353d9f49bb5 # v2.87.19
+        with:
+          tool: wasm-pack
+      # Only these targets avoid Node's fs module.
+      - name: Chrome
+        working-directory: interop/web
+        run: wasm-pack test --headless --chrome --release --test encryption --test broken_crypto --test broken_crypto_plain
+      - name: Firefox
+        working-directory: interop/web
+        run: wasm-pack test --headless --firefox --release --test encryption --test broken_crypto --test broken_crypto_plain
+
+  sqlcipher-suite:
+    name: SQLCipher's own tests pass on the shipped sources
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: sudo apt-get install -y --no-install-recommends tcl-dev
+      - run: ./suite/run.sh
