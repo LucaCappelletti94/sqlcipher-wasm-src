@@ -55,7 +55,7 @@ int sqlcipher_wasm_extra_init(const char *arg) {
   return sqlcipher_extra_init(arg);
 }
 
-/* Only cipher_log, cipher_profile, cipher_migrate and exit cleanup reach these, and fail cleanly. */
+/* cipher_log, cipher_profile and cipher_migrate get failures, and atexit is a no-op as Wasm never exits. */
 FILE *const stdout = 0;
 FILE *const stderr = 0;
 FILE *fopen(const char *restrict path, const char *restrict mode) { (void)path; (void)mode; return 0; }

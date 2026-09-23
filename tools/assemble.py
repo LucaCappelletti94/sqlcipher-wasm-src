@@ -9,6 +9,10 @@ import sys
 
 sqlcipher, libtomcrypt, out = sys.argv[1:4]
 os.makedirs(out, exist_ok=True)
+# A file an upstream release drops must leave the crate, so only the hand-written wrapper survives.
+for name in os.listdir(out):
+    if name != "sqlite3.c":
+        os.remove(os.path.join(out, name))
 
 # sqlite-wasm-rs puts only its libc shim on the include path, so tomcrypt headers are included by quote.
 ANGLED_TOMCRYPT = re.compile(r"#include <(tomcrypt[a-z_]*\.h)>")

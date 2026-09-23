@@ -5,9 +5,11 @@
 [![Coverage](https://codecov.io/gh/LucaCappelletti94/sqlcipher-wasm-src/graph/badge.svg)](https://codecov.io/gh/LucaCappelletti94/sqlcipher-wasm-src)
 [![Quality gate](https://sonarcloud.io/api/project_badges/measure?project=LucaCappelletti94_sqlcipher-wasm-src&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=LucaCappelletti94_sqlcipher-wasm-src)
 [![SQLCipher release](https://github.com/LucaCappelletti94/sqlcipher-wasm-src/actions/workflows/sqlcipher-release.yml/badge.svg)](https://github.com/LucaCappelletti94/sqlcipher-wasm-src/actions/workflows/sqlcipher-release.yml)
+[![crates.io](https://img.shields.io/crates/v/sqlcipher-wasm-src.svg)](https://crates.io/crates/sqlcipher-wasm-src)
+[![docs.rs](https://docs.rs/sqlcipher-wasm-src/badge.svg)](https://docs.rs/sqlcipher-wasm-src)
 [![license](https://img.shields.io/badge/license-MIT%20AND%20BSD--3--Clause%20AND%20blessing%20AND%20WTFPL-blue.svg)](https://github.com/LucaCappelletti94/sqlcipher-wasm-src/blob/main/Cargo.toml)
 
-[SQLCipher](https://github.com/sqlcipher/sqlcipher) with its [libtomcrypt](https://github.com/libtom/libtomcrypt) crypto provider as C source, for building SQLCipher where no system crypto library exists, such as `wasm32-unknown-unknown` through [`sqlite-wasm-rs`](https://github.com/Spxg/sqlite-wasm-rs). An experiment, not published. `rusqlite` master picks it up in the browser with no feature enabled, while `rusqlite` 0.40.2 cannot, as it takes `sqlite-wasm-rs` 0.5.
+[SQLCipher](https://github.com/sqlcipher/sqlcipher) with its [libtomcrypt](https://github.com/libtom/libtomcrypt) crypto provider as C source, for building SQLCipher where no system crypto library exists, such as `wasm32-unknown-unknown` through [`sqlite-wasm-rs`](https://github.com/Spxg/sqlite-wasm-rs). An experiment. `rusqlite` master picks it up in the browser with no feature enabled, while `rusqlite` 0.40.2 cannot, as it takes `sqlite-wasm-rs` 0.5.
 
 ```rust
 let dir = sqlcipher_wasm_src::source_dir();
