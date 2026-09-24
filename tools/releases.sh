@@ -53,3 +53,11 @@ fetch_libtomcrypt() {
     mkdir "$1/libtomcrypt"
     tar xJf "$1/libtomcrypt.tar.xz" --strip-components=1 -C "$1/libtomcrypt"
 }
+
+# Points bindgen at the pinned libclang, which CI installs as libclang-<major>-dev.
+use_libclang() {
+    LIBCLANG_PATH="/usr/lib/llvm-${LLVM_MAJOR}/lib"
+    export LIBCLANG_PATH
+    [ -f "$LIBCLANG_PATH/libclang-${LLVM_MAJOR}.so" ] ||
+        { echo "libclang ${LLVM_MAJOR} not found, install libclang-${LLVM_MAJOR}-dev" >&2; exit 1; }
+}
