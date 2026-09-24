@@ -70,6 +70,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo apt-get install -y --no-install-recommends tcl
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      # Bindings come from building sqlite-wasm-rs with bindgen, which needs this toolchain and libclang.
       - run: ./upgrade.sh
       - run: git diff --exit-code
 
@@ -121,10 +126,10 @@ jobs:
       # These avoid Node's fs module, and sahpool needs a browser worker for OPFS.
       - name: Chrome
         working-directory: interop/web
-        run: wasm-pack test --headless --chrome --release --test encryption --test broken_crypto --test broken_crypto_plain --test sahpool
+        run: wasm-pack test --headless --chrome --release --test encryption --test broken_crypto --test broken_crypto_plain --test sahpool --test bindings
       - name: Firefox
         working-directory: interop/web
-        run: wasm-pack test --headless --firefox --release --test encryption --test broken_crypto --test broken_crypto_plain --test sahpool
+        run: wasm-pack test --headless --firefox --release --test encryption --test broken_crypto --test broken_crypto_plain --test sahpool --test bindings
 
   sqlcipher-suite:
     name: SQLCipher's own tests pass on the shipped sources

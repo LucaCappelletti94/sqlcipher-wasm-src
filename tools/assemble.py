@@ -1,7 +1,6 @@
 """Builds the vendored directory from an unpacked SQLCipher tree (with sqlite3.c made) and libtomcrypt release."""
 
 import glob
-import hashlib
 import os
 import re
 import shutil
@@ -62,11 +61,3 @@ for path in sources:
     body = re.sub(r'#include\s+"([^"]+\.c)"', lambda m: '#include "' + os.path.basename(m.group(1)) + '"', read(path))
     parts.append(f'\n/* ===== {rel} ===== */\n#line 1 "{rel}"\n{body}\n')
 write(os.path.join(out, "libtomcrypt.c"), "".join(parts))
-
-# The hand-written wasm wrapper is not generated, so it stays out of the checksums.
-with open(os.path.join(out, "SHA256SUMS"), "w") as sums:
-    for name in sorted(os.listdir(out)):
-        if name in ("SHA256SUMS", "sqlite3.c"):
-            continue
-        with open(os.path.join(out, name), "rb") as f:
-            sums.write(f"{hashlib.sha256(f.read()).hexdigest()}  {name}\n")

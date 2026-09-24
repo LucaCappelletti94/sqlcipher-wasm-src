@@ -1,7 +1,7 @@
 //! The generated files agree with the versions the crate declares.
 
 use sqlcipher_wasm_src::{
-    source_dir, HEADER_FILE, LIBTOMCRYPT_VERSION, SQLCIPHER_VERSION, SQLITE_VERSION,
+    source_dir, BINDINGS_FILE, HEADER_FILE, LIBTOMCRYPT_VERSION, SQLCIPHER_VERSION, SQLITE_VERSION,
     WASM_SOURCE_FILE,
 };
 
@@ -14,6 +14,7 @@ fn every_generated_file_is_present() {
     for file in [
         WASM_SOURCE_FILE,
         HEADER_FILE,
+        BINDINGS_FILE,
         "sqlcipher.c",
         "libtomcrypt.c",
         "tomcrypt.h",
@@ -127,5 +128,37 @@ fn wasm_wrapper_keeps_its_load_bearing_settings() {
         "if (getentropy(out, len) != 0) abort();",
     ] {
         assert!(wrapper.contains(setting), "wrapper lost `{setting}`");
+    }
+}
+
+#[test]
+fn bindings_declare_the_codec_api_for_the_shipped_sqlite() {
+    let bindings = read(BINDINGS_FILE);
+    for function in ["sqlite3_key", "sqlite3_rekey"] {
+        assert!(
+            bindings.contains(&format!("pub fn {function}(")),
+            "bindings lack `{function}`, so `SQLITE_HAS_CODEC` was not set"
+        );
+    }
+    assert!(bindings.contains(&format!(
+        "pub const SQLITE_VERSION: &::core::ffi::CStr = c\"{SQLITE_VERSION}\";"
+    )));
+}
+
+#[test]
+fn libc_stubs_yield_to_sqlite_wasm_rs() {
+    let wrapper = read(WASM_SOURCE_FILE);
+    for name in ["stdout", "stderr", "fopen", "fprintf", "rename", "atexit"] {
+        let definition = wrapper
+            .lines()
+            .find(|l| {
+                !l.starts_with("/*")
+                    && (l.contains(&format!("{name}(")) || l.contains(&format!("{name} = 0;")))
+            })
+            .unwrap_or_else(|| panic!("no stub for `{name}`"));
+        assert!(
+            definition.starts_with("__attribute__((weak)) "),
+            "`{name}` would clash with a sqlite-wasm-rs definition: {definition}"
+        );
     }
 }
