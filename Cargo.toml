@@ -1,15 +1,15 @@
 [package]
-name = "sqlcipher-wasm-src"
+name = "sqlcipher-amalgamation"
 # SQLCipher X.Y.Z is (100X+Y).Z.n, where n counts our own republishes of that release.
-version = "419.0.1+sqlcipher-4.19.0-sqlite-3.53.4-libtomcrypt-1.18.2"
+version = "419.0.2+sqlcipher-4.19.0-sqlite-3.53.4-libtomcrypt-1.18.2"
 edition = "2021"
 rust-version = "1.81"
-description = "SQLCipher with a libtomcrypt provider as C source, patched for wasm32 builds via sqlite-wasm-rs"
+description = "The SQLCipher amalgamation for native and wasm32 builds, with a libtomcrypt provider for targets without a system crypto library"
 license = "MIT AND BSD-3-Clause AND blessing AND WTFPL"
-keywords = ["sqlite", "sqlcipher", "encryption", "wasm"]
+keywords = ["sqlite", "sqlcipher", "encryption", "amalgamation", "wasm"]
 categories = ["database", "development-tools::build-utils"]
 readme = "README.md"
-repository = "https://github.com/LucaCappelletti94/sqlcipher-wasm-src"
+repository = "https://github.com/LucaCappelletti94/sqlcipher-amalgamation"
 include = ["/src", "/sqlcipher", "/tests", "/README.md", "/LICENSE"]
 
 [lints.rust]

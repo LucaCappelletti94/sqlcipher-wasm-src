@@ -31,7 +31,7 @@ sed -i -E \
     -e "s/^(pub const SQLITE_VERSION: &str = )\".*\";$/\1\"${SQLITE_VERSION}\";/" \
     src/lib.rs
 sed -i -E "0,/^version = \".*\"$/s//version = \"${CRATE_VERSION}\"/" Cargo.toml
-cargo update --quiet -p sqlcipher-wasm-src
-cargo update --quiet --manifest-path interop/web/Cargo.toml -p sqlcipher-wasm-src
+cargo update --quiet -p sqlcipher-amalgamation
+cargo update --quiet --manifest-path interop/web/Cargo.toml -p sqlcipher-amalgamation
 
 echo "Pinned SQLCipher ${VERSION} on SQLite ${SQLITE_VERSION} as ${CRATE_VERSION}"

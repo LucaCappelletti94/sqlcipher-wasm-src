@@ -1,8 +1,8 @@
 //! The generated files agree with the versions the crate declares.
 
-use sqlcipher_wasm_src::{
-    source_dir, BINDINGS_FILE, HEADER_FILE, LIBTOMCRYPT_VERSION, SQLCIPHER_VERSION, SQLITE_VERSION,
-    WASM_SOURCE_FILE,
+use sqlcipher_amalgamation::{
+    source_dir, AMALGAMATION_FILE, HEADER_FILE, LIBTOMCRYPT_VERSION, SQLCIPHER_VERSION,
+    SQLITE_VERSION, WASM_BINDINGS_FILE, WASM_SOURCE_FILE,
 };
 
 fn read(file: &str) -> String {
@@ -14,8 +14,8 @@ fn every_generated_file_is_present() {
     for file in [
         WASM_SOURCE_FILE,
         HEADER_FILE,
-        BINDINGS_FILE,
-        "sqlcipher.c",
+        WASM_BINDINGS_FILE,
+        AMALGAMATION_FILE,
         "libtomcrypt.c",
         "tomcrypt.h",
         "LICENSE-sqlcipher",
@@ -49,7 +49,7 @@ fn sources_carry_the_declared_versions() {
         .lines()
         .any(|l| l.starts_with("#define SQLITE_VERSION ")
             && l.contains(&format!("\"{SQLITE_VERSION}\""))));
-    let sqlcipher = read("sqlcipher.c");
+    let sqlcipher = read(AMALGAMATION_FILE);
     assert!(sqlcipher
         .lines()
         .any(|l| l.trim() == format!("#define CIPHER_VERSION_NUMBER {SQLCIPHER_VERSION}")));
@@ -80,7 +80,7 @@ fn crate_version_encodes_the_release() {
 
 #[test]
 fn sqlcipher_finalizer_is_skipped_on_wasm() {
-    let sqlcipher = read("sqlcipher.c");
+    let sqlcipher = read(AMALGAMATION_FILE);
     let registration = sqlcipher
         .lines()
         .position(|l| l.contains("section(\".fini_array\")"))
@@ -133,7 +133,7 @@ fn wasm_wrapper_keeps_its_load_bearing_settings() {
 
 #[test]
 fn bindings_declare_the_codec_api_for_the_shipped_sqlite() {
-    let bindings = read(BINDINGS_FILE);
+    let bindings = read(WASM_BINDINGS_FILE);
     for function in ["sqlite3_key", "sqlite3_rekey"] {
         assert!(
             bindings.contains(&format!("pub fn {function}(")),

@@ -34,7 +34,7 @@ fn rusqlite_reads_native_and_writes_for_native() {
         .query_row("PRAGMA cipher_version", [], |r| r.get::<_, String>(0))
         .unwrap();
     assert!(
-        version.starts_with(&format!("{} ", sqlcipher_wasm_src::SQLCIPHER_VERSION)),
+        version.starts_with(&format!("{} ", sqlcipher_amalgamation::SQLCIPHER_VERSION)),
         "{version}"
     );
     let util = unsafe { MemVfsUtil::get() }.unwrap();

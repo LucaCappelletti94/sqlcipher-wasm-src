@@ -101,8 +101,9 @@ fn sqlcipher_is_compiled_in() {
     let v = db.one("PRAGMA cipher_version").unwrap();
     let p = db.one("PRAGMA cipher_provider").unwrap();
     assert!(
-        v.as_deref()
-            .is_some_and(|v| v.starts_with(&format!("{} ", sqlcipher_wasm_src::SQLCIPHER_VERSION))),
+        v.as_deref().is_some_and(
+            |v| v.starts_with(&format!("{} ", sqlcipher_amalgamation::SQLCIPHER_VERSION))
+        ),
         "{v:?}"
     );
     assert_eq!(p.as_deref(), Some("libtomcrypt"));

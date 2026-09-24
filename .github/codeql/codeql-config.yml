@@ -1,5 +1,5 @@
 ---
-name: sqlcipher-wasm-src CodeQL configuration
+name: sqlcipher-amalgamation CodeQL configuration
 
 queries:
   - uses: security-extended

@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "sqlcipher-wasm-src"
-version = "419.0.1+sqlcipher-4.19.0-sqlite-3.53.4-libtomcrypt-1.18.2"
+name = "sqlcipher-amalgamation"
+version = "419.0.2+sqlcipher-4.19.0-sqlite-3.53.4-libtomcrypt-1.18.2"

@@ -100,7 +100,7 @@ jobs:
           set -eu
           cargo package --quiet
           version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-          SQLCIPHER_DIR="$PWD/target/package/sqlcipher-wasm-src-$version/sqlcipher" ./interop/run.sh
+          SQLCIPHER_DIR="$PWD/target/package/sqlcipher-amalgamation-$version/sqlcipher" ./interop/run.sh
         env:
           WASM_BINDGEN_TEST_TIMEOUT: "300"
       - run: cargo clippy --manifest-path interop/web/Cargo.toml --target wasm32-unknown-unknown --all-targets -- -D warnings
@@ -163,3 +163,26 @@ jobs:
           rustup toolchain install "$web" --profile minimal --target wasm32-unknown-unknown
           cargo "+$native" check --manifest-path interop/native/Cargo.toml --all-targets
           SQLITE_WASM_RS_SOURCE_DIR="$PWD/sqlcipher" cargo "+$web" check --manifest-path interop/web/Cargo.toml --target wasm32-unknown-unknown --all-targets
+
+  rusqlite-native:
+    name: rusqlite's SQLCipher tests pass on these sources natively
+    runs-on: ubuntu-latest
+    env:
+      # Moved by hand, since Dependabot cannot follow a git revision.
+      RUSQLITE_REV: b6476751216cb8569a3f747611f37a394a8de4e3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: stable
+      - name: Build libsqlite3-sys from this amalgamation and run rusqlite's SQLCipher tests
+        run: |
+          set -euo pipefail
+          rusqlite="$RUNNER_TEMP/rusqlite"
+          git init -q "$rusqlite"
+          git -C "$rusqlite" fetch -q --depth 1 https://github.com/rusqlite/rusqlite.git "$RUSQLITE_REV"
+          git -C "$rusqlite" checkout -q FETCH_HEAD
+          cp sqlcipher/sqlcipher.c "$rusqlite/libsqlite3-sys/sqlcipher/sqlite3.c"
+          cp sqlcipher/sqlite3.h sqlcipher/sqlite3ext.h "$rusqlite/libsqlite3-sys/sqlcipher/"
+          cd "$rusqlite"
+          cargo test --features "backup blob chrono functions limits load_extension serde_json trace vtab bundled-sqlcipher-vendored-openssl"

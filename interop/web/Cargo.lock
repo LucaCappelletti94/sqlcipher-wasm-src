@@ -125,7 +125,7 @@ version = "0.0.0"
 dependencies = [
  "js-sys",
  "rusqlite",
- "sqlcipher-wasm-src",
+ "sqlcipher-amalgamation",
  "sqlite-wasm-rs",
  "sqlite-wasm-vfs",
  "wasm-bindgen",
@@ -341,8 +341,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 
 [[package]]
-name = "sqlcipher-wasm-src"
-version = "419.0.1+sqlcipher-4.19.0-sqlite-3.53.4-libtomcrypt-1.18.2"
+name = "sqlcipher-amalgamation"
+version = "419.0.2+sqlcipher-4.19.0-sqlite-3.53.4-libtomcrypt-1.18.2"
 
 [[package]]
 name = "sqlite-wasm-rs"
