@@ -10,6 +10,8 @@ LIBTOMCRYPT_VERSION="1.18.2"
 LIBTOMCRYPT_SHA256="96ad4c3b8336050993c5bc2cf6c057484f2b0f9f763448151567fbab5e767b84"
 # Steffen Jaeckel's key from keyserver.ubuntu.com, in keys/libtomcrypt.asc.
 LIBTOMCRYPT_SIGNER="C4386A237ED43A475541B9427B2CD0DD4BCFF59B"
+# bindgen output depends on the libclang it loads, and ubuntu-latest carries several.
+LLVM_MAJOR="18"
 
 # Only the committed keys count, never the machine's keyring.
 trust_keys() {
