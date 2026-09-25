@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 FIXTURES="$(pwd)/fixtures"
 # The README's lookup, unless CI points SQLCIPHER_DIR at the packaged crate to prove what users download.
 SOURCE_DIR=${SQLCIPHER_DIR:-$(cargo metadata --format-version 1 --manifest-path web/Cargo.toml |
-    jq -r '.packages[] | select(.name == "sqlcipher-amalgamation") | .manifest_path' | xargs dirname)/sqlcipher}
+    jq -r '.packages[] | select(.name == "sqlcipher-src") | .manifest_path' | xargs dirname)/sqlcipher}
 [ -f "$SOURCE_DIR/sqlite3.c" ] || { echo "no SQLCipher sources in $SOURCE_DIR" >&2; exit 1; }
 rm -rf "$FIXTURES" && mkdir -p "$FIXTURES"
 cargo run --release --manifest-path native/Cargo.toml -- write "$FIXTURES"

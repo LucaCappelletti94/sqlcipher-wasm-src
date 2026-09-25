@@ -39,10 +39,10 @@ jobs:
             exit 1
           fi
           git merge-base --is-ancestor HEAD origin/main
-          status=$(curl -s -o /dev/null -w '%{http_code}' -A "sqlcipher-amalgamation release workflow" \
-            "https://crates.io/api/v1/crates/sqlcipher-amalgamation/${version}")
+          status=$(curl -s -o /dev/null -w '%{http_code}' -A "sqlcipher-src release workflow" \
+            "https://crates.io/api/v1/crates/sqlcipher-src/${version}")
           if [ "$status" = 200 ]; then
-            echo "sqlcipher-amalgamation $version is already on crates.io"
+            echo "sqlcipher-src $version is already on crates.io"
           else
             echo "publish=yes" >> "$GITHUB_OUTPUT"
           fi
@@ -91,4 +91,4 @@ jobs:
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" \
             --verify-tag \
             --title "$GITHUB_REF_NAME" \
-            --notes "sqlcipher-amalgamation $VERSION on [crates.io](https://crates.io/crates/sqlcipher-amalgamation/$VERSION)."
+            --notes "sqlcipher-src $VERSION on [crates.io](https://crates.io/crates/sqlcipher-src/$VERSION)."

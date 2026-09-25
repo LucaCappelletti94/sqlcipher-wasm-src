@@ -1,6 +1,6 @@
 //! The generated files agree with the versions the crate declares.
 
-use sqlcipher_amalgamation::{
+use sqlcipher_src::{
     source_dir, AMALGAMATION_FILE, HEADER_FILE, LIBTOMCRYPT_VERSION, SQLCIPHER_VERSION,
     SQLITE_VERSION, WASM_BINDINGS_FILE, WASM_SOURCE_FILE,
 };

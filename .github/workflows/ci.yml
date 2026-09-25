@@ -100,7 +100,7 @@ jobs:
           set -eu
           cargo package --quiet
           version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-          SQLCIPHER_DIR="$PWD/target/package/sqlcipher-amalgamation-$version/sqlcipher" ./interop/run.sh
+          SQLCIPHER_DIR="$PWD/target/package/sqlcipher-src-$version/sqlcipher" ./interop/run.sh
         env:
           WASM_BINDGEN_TEST_TIMEOUT: "300"
       - run: cargo clippy --manifest-path interop/web/Cargo.toml --target wasm32-unknown-unknown --all-targets -- -D warnings
