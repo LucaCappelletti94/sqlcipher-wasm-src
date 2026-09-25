@@ -1,8 +1,8 @@
 //! The generated files agree with the versions the crate declares.
 
 use sqlcipher_src::{
-    source_dir, AMALGAMATION_FILE, HEADER_FILE, LIBTOMCRYPT_VERSION, SQLCIPHER_VERSION,
-    SQLITE_VERSION, WASM_BINDINGS_FILE, WASM_SOURCE_FILE,
+    source_dir, HEADER_FILE, LIBTOMCRYPT_VERSION, SOURCE_FILE, SQLCIPHER_VERSION, SQLITE_VERSION,
+    WASM_BINDINGS_FILE, WASM_SOURCE_FILE,
 };
 
 fn read(file: &str) -> String {
@@ -15,7 +15,7 @@ fn every_generated_file_is_present() {
         WASM_SOURCE_FILE,
         HEADER_FILE,
         WASM_BINDINGS_FILE,
-        AMALGAMATION_FILE,
+        SOURCE_FILE,
         "libtomcrypt.c",
         "tomcrypt.h",
         "LICENSE-sqlcipher",
@@ -49,7 +49,7 @@ fn sources_carry_the_declared_versions() {
         .lines()
         .any(|l| l.starts_with("#define SQLITE_VERSION ")
             && l.contains(&format!("\"{SQLITE_VERSION}\""))));
-    let sqlcipher = read(AMALGAMATION_FILE);
+    let sqlcipher = read(SOURCE_FILE);
     assert!(sqlcipher
         .lines()
         .any(|l| l.trim() == format!("#define CIPHER_VERSION_NUMBER {SQLCIPHER_VERSION}")));
@@ -80,7 +80,7 @@ fn crate_version_encodes_the_release() {
 
 #[test]
 fn sqlcipher_finalizer_is_skipped_on_wasm() {
-    let sqlcipher = read(AMALGAMATION_FILE);
+    let sqlcipher = read(SOURCE_FILE);
     let registration = sqlcipher
         .lines()
         .position(|l| l.contains("section(\".fini_array\")"))

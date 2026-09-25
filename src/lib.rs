@@ -12,7 +12,7 @@ pub const SQLITE_VERSION: &str = "3.53.4";
 pub const LIBTOMCRYPT_VERSION: &str = "1.18.2";
 
 /// SQLCipher amalgamation inside [`source_dir`], for native builds that pick their own crypto provider.
-pub const AMALGAMATION_FILE: &str = "sqlcipher.c";
+pub const SOURCE_FILE: &str = "sqlcipher.c";
 
 /// Public SQLCipher header inside [`source_dir`].
 pub const HEADER_FILE: &str = "sqlite3.h";

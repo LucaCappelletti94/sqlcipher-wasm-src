@@ -11,11 +11,11 @@
 
 The [SQLCipher](https://github.com/sqlcipher/sqlcipher) amalgamation as C source for `-sys` crates, on native targets and on `wasm32-unknown-unknown` through [`sqlite-wasm-rs`](https://github.com/Spxg/sqlite-wasm-rs), where it adds the [libtomcrypt](https://github.com/libtom/libtomcrypt) crypto provider.
 
-Native builds compile `AMALGAMATION_FILE` with their own crypto provider and flags:
+Native builds compile `SOURCE_FILE` with their own crypto provider and flags:
 
 ```rust
 let dir = sqlcipher_src::source_dir();
-assert!(dir.join(sqlcipher_src::AMALGAMATION_FILE).is_file());
+assert!(dir.join(sqlcipher_src::SOURCE_FILE).is_file());
 assert!(dir.join(sqlcipher_src::HEADER_FILE).is_file());
 ```
 
